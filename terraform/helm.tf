@@ -134,7 +134,7 @@ resource "helm_release" "argocd" {
     yamlencode({
       server = {
         # plain http, public tls ends at cloudflare; the ui is only reached through kubectl port-forward,
-        # the gateway exposes nothing but POST /api/webhook (infra/k8s/bootstrap/argocd-webhook.yaml)
+        # the gateway exposes nothing but POST /api/webhook (k8s/bootstrap/argocd-webhook.yaml)
         extraArgs = ["--insecure"]
         service = {
           type = "ClusterIP"
@@ -205,7 +205,7 @@ resource "helm_release" "argocd" {
   }
 }
 
-# flux keeps the cluster at what infra/k8s/helm on main says, see infra/k8s/bootstrap/flux.yaml.
+# flux keeps the cluster at what howwasread's infra/k8s/helm on main says, see forfutureusage/flux.yaml.
 # install by hand with -target; only the controllers this setup uses, ci writes the image tags itself
 # resource "helm_release" "flux" {
 #   name       = "flux"
