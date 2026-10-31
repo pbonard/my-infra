@@ -408,6 +408,26 @@ resource "helm_release" "garage_operator" {
   depends_on = [helm_release.cert_manager]
 }
 
+resource "helm_release" "opensearch_operator" {
+  name       = "opensearch-operator"
+  repository = "https://opensearch-project.github.io/opensearch-k8s-operator/"
+  chart      = "opensearch-operator"
+  # pinned, so terraform apply never upgrades the operator by surprise (chart 3.0.14 = operator 3.0.0)
+  version          = "3.0.14"
+  namespace        = "opensearch"
+  create_namespace = true
+
+  values = [
+    yamlencode({
+      # a fresh install, the deprecated opensearch.opster.io/v1 crds and webhooks are never needed
+      legacyAPI = { enabled = false }
+    })
+  ]
+
+  # validation webhooks get their certificates from cert-manager
+  depends_on = [helm_release.cert_manager]
+}
+
 # resource "helm_release" "metrics_server" {
 #   name       = "metrics-server"
 #   repository = "https://kubernetes-sigs.github.io/metrics-server/"

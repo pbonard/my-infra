@@ -15,7 +15,7 @@ spec:
     metadata:
       size: 1Gi
     data:
-      size: 50Gi
+      size: 5Gi
   s3Api:
     region: garage
   network:
@@ -68,7 +68,8 @@ spec:
       reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
       reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "backend"
 ---
-# browsers fetch objects with presigned urls through cloudflare, the tunnel already sends *.pbonard.com to the gateway
+# the app uploads (presigned POST) and fetches (presigned GET) objects through cloudflare, the tunnel already sends
+# *.pbonard.com to the gateway. garage checks the signature of each, an unsigned request gets 403
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -85,6 +86,7 @@ spec:
     - matches:
         - method: GET
         - method: HEAD
+        - method: POST
       backendRefs:
         - name: garage
           port: 3900
