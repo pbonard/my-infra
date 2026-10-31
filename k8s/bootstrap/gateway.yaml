@@ -81,7 +81,7 @@ spec:
           selector:
             matchLabels:
               kubernetes.io/metadata.name: argocd
-    # garage's s3 api, read only from outside, the route is in garage.yaml
+    # garage's s3 api, presigned GET and POST only from outside, the route is in garage.yaml
     - name: s3-http
       hostname: "s3.pbonard.com"
       port: 80

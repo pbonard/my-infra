@@ -24,6 +24,17 @@ kubectl create secret generic garage-admin-token \
 -n garage \
 --from-literal=admin-token="$(openssl rand -hex 32)"
 
+# opensearch, do this before applying opensearch.yaml
+kubectl create secret generic opensearch-backend-user \
+-n opensearch \
+--from-literal=OPENSEARCH_PASSWORD="$(openssl rand -hex 24)"
+
+kubectl annotate secret opensearch-backend-user -n opensearch \
+reflector.v1.k8s.emberstack.com/reflection-allowed="true" \
+reflector.v1.k8s.emberstack.com/reflection-auto-enabled="true" \
+reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces="backend" \
+--overwrite
+
 # k8ssandra
 
 # do this before generate cert
