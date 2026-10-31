@@ -1,0 +1,90 @@
+# single node garage, the s3 replacement for the chat bucket. The operator is helm_release.garage_operator
+# garage-admin-token secret should be deployed already (bootstrap.sh)
+apiVersion: garage.rajsingh.info/v1beta2
+kind: GarageCluster
+metadata:
+  name: garage
+  namespace: garage
+spec:
+  zone: home
+  # one node holds the only copy, a lost disk loses the objects
+  replication:
+    factor: 1
+  storage:
+    replicas: 1
+    metadata:
+      size: 1Gi
+    data:
+      size: 50Gi
+  s3Api:
+    region: garage
+  network:
+    service:
+      type: ClusterIP
+  admin:
+    adminTokenSecretRef:
+      name: garage-admin-token
+      key: admin-token
+---
+apiVersion: garage.rajsingh.info/v1beta1
+kind: GarageBucket
+metadata:
+  name: chat-bucket
+  namespace: garage
+spec:
+  clusterRef:
+    name: garage
+  globalAlias: chat-bucket
+  # kubectl delete of the resource never drops the objects
+  deletionPolicy: Retain
+---
+apiVersion: garage.rajsingh.info/v1beta1
+kind: GarageKey
+metadata:
+  name: backend
+  namespace: garage
+spec:
+  clusterRef:
+    name: garage
+  neverExpires: true
+  bucketPermissions:
+    - bucketRef:
+        name: chat-bucket
+      read: true
+      write: true
+  # aws sdks read these env names directly, AWS_ENDPOINT_URL included. reflected to backend like k8ssandra's superuser
+  secretTemplate:
+    name: garage-s3
+    accessKeyIdKey: AWS_ACCESS_KEY_ID
+    secretAccessKeyKey: AWS_SECRET_ACCESS_KEY
+    endpointKey: AWS_ENDPOINT_URL
+    regionKey: AWS_REGION
+    hostKey: S3_HOST
+    schemeKey: S3_SCHEME
+    includeBucketName: true
+    bucketNameKey: S3_BUCKET
+    annotations:
+      reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
+      reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
+      reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "backend"
+---
+# browsers fetch objects with presigned urls through cloudflare, the tunnel already sends *.pbonard.com to the gateway
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: garage-s3
+  namespace: garage
+spec:
+  parentRefs:
+    - name: cluster-gateway
+      namespace: envoy-gateway-system
+      sectionName: s3-http
+  hostnames:
+    - s3.pbonard.com
+  rules:
+    - matches:
+        - method: GET
+        - method: HEAD
+      backendRefs:
+        - name: garage
+          port: 3900

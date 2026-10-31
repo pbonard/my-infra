@@ -395,6 +395,19 @@ resource "helm_release" "valkey_operator" {
   # ]
 }
 
+resource "helm_release" "garage_operator" {
+  name       = "garage-operator"
+  repository = "oci://ghcr.io/rajsinghtech/charts"
+  chart      = "garage-operator"
+  # pinned, so terraform apply never upgrades the operator by surprise
+  version          = "0.8.2"
+  namespace        = "garage"
+  create_namespace = true
+
+  # admission and conversion webhooks get their certificates from cert-manager
+  depends_on = [helm_release.cert_manager]
+}
+
 # resource "helm_release" "metrics_server" {
 #   name       = "metrics-server"
 #   repository = "https://kubernetes-sigs.github.io/metrics-server/"

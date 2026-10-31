@@ -1,0 +1,36 @@
+# throwaway cluster for trying Cassandra 6.0 before upgrading k8ssandra-cluster.
+# 6.0 is pre-GA; only nightly management-api images exist. Delete when done:
+#   kubectl delete -f k8s/experiments/k8ssandra-cass6-test.yaml
+apiVersion: k8ssandra.io/v1alpha1
+kind: K8ssandraCluster
+metadata:
+  name: cass6-test
+  namespace: k8ssandra
+spec:
+  cassandra:
+    serverVersion: "6.0.0"
+    serverImage: "k8ssandra/cass-management-api:6.0-nightly-20261013"
+    datacenters:
+      - metadata:
+          name: test6
+        size: 1
+        # share the single node with k8ssandra-cluster's pod
+        softPodAntiAffinity: true
+        resources:
+          requests:
+            cpu: 500m
+            memory: 2Gi
+          limits:
+            cpu: "2"
+            memory: 2560Mi
+        config:
+          jvmOptions:
+            heapSize: 1Gi
+        storageConfig:
+          cassandraDataVolumeClaimSpec:
+            storageClassName: local-path
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 2Gi

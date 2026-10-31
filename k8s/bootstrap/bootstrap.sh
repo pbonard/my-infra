@@ -19,6 +19,11 @@ kubectl rollout restart deployment sealed-secrets-controller -n kube-system
 
 kubectl get secret -n argocd argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 
+# garage, do this before applying garage.yaml
+kubectl create secret generic garage-admin-token \
+-n garage \
+--from-literal=admin-token="$(openssl rand -hex 32)"
+
 # k8ssandra
 
 # do this before generate cert
