@@ -68,6 +68,42 @@ spec:
       reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
       reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "backend"
 ---
+# flink's checkpoints, savepoints and ha metadata, s3://flink-state/<job>/...
+apiVersion: garage.rajsingh.info/v1beta1
+kind: GarageBucket
+metadata:
+  name: flink-state
+  namespace: garage
+spec:
+  clusterRef:
+    name: garage
+  globalAlias: flink-state
+  deletionPolicy: Retain
+---
+# flink's own key, only flink-state. the s3 plugin reads AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY from env
+apiVersion: garage.rajsingh.info/v1beta1
+kind: GarageKey
+metadata:
+  name: flink
+  namespace: garage
+spec:
+  clusterRef:
+    name: garage
+  neverExpires: true
+  bucketPermissions:
+    - bucketRef:
+        name: flink-state
+      read: true
+      write: true
+  secretTemplate:
+    name: garage-flink
+    accessKeyIdKey: AWS_ACCESS_KEY_ID
+    secretAccessKeyKey: AWS_SECRET_ACCESS_KEY
+    annotations:
+      reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
+      reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
+      reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "flink"
+---
 # the app uploads (presigned POST) and fetches (presigned GET) objects through cloudflare, the tunnel already sends
 # *.pbonard.com to the gateway. garage checks the signature of each, an unsigned request gets 403
 apiVersion: gateway.networking.k8s.io/v1
