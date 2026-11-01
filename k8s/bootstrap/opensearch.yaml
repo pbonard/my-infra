@@ -36,14 +36,15 @@ spec:
           storageClass: local-path
           accessModes:
             - ReadWriteOnce
-      # heap is half the memory, lucene uses the rest through the page cache
-      jvm: -Xms1536m -Xmx1536m
+      # two small indices peaked at ~100mb of old gen on a 1536m heap, 400m leaves ~4x room.
+      # the jvm needs ~300mb more off heap (metaspace, threads, buffers), lucene's page cache gets the rest
+      jvm: -Xms400m -Xmx400m
       resources:
         requests:
-          memory: 3Gi
+          memory: 1Gi
           cpu: 500m
         limits:
-          memory: 3Gi
+          memory: 1Gi
 ---
 # no second node to hold replicas, indices would stay yellow with the default of 1
 # an index template of the app with a higher priority replaces this one, set replicas 0 there too
