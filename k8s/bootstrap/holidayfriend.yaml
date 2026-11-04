@@ -15,7 +15,8 @@ data:
   GOOGLE_SIGN_IN_WEB_CLIENT_ID: "146765125400-2f5f2ildpicetbo1ebedbs3g9nnbrur4.apps.googleusercontent.com"
   # sign in gives tokens without the phone step, phone login itself stays available
   PHONE_VERIFICATION_REQUIRED: "false"
-  BUNDLE_IDENTIFIER: ""
+  # the services id of apple sign in on the web, the audience of its tokens
+  BUNDLE_IDENTIFIER: "com.xcecv.holidayfriend.web"
   FROM_EMAIL: "wsxc20xx@gmail.com"
   FROM_EMAIL_SMTP: "smtp.gmail.com"
   SMTP_ADDR: "smtp.gmail.com:587"
