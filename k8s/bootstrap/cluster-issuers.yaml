@@ -115,5 +115,9 @@ spec:
     configMap:
       key: ca.crt
     namespaceSelector:
-      matchLabels:
-        kubernetes.io/metadata.name: backend
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: In
+          values:
+            - backend
+            - holidayfriend

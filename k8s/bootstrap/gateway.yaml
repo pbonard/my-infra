@@ -70,6 +70,16 @@ spec:
       allowedRoutes:
         namespaces:
           from: All
+    - name: holidayfriend-http
+      hostname: "holidayfriend.pbonard.com"
+      port: 80
+      protocol: HTTP
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              kubernetes.io/metadata.name: holidayfriend
     # github's argo cd webhook, the only route on it is POST /api/webhook (argocd-webhook.yaml)
     - name: argocd-webhook-http
       hostname: "argocd-webhook.pbonard.com"
