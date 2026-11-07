@@ -51,6 +51,32 @@ resource "helm_release" "flink_operator" {
     name  = "webhook.create"
     value = "true"
   }
+
+  # without these the default max heap is a quarter of the node, about 7 GiB, and the jvm has no reason to give it back
+  set {
+    name  = "jvmArgs.operator"
+    value = "-Xms64m -Xmx256m"
+  }
+  set {
+    name  = "jvmArgs.webhook"
+    value = "-Xms64m -Xmx128m"
+  }
+  set {
+    name  = "operatorPod.resources.requests.memory"
+    value = "384Mi"
+  }
+  set {
+    name  = "operatorPod.resources.limits.memory"
+    value = "640Mi"
+  }
+  set {
+    name  = "operatorPod.webhook.resources.requests.memory"
+    value = "256Mi"
+  }
+  set {
+    name  = "operatorPod.webhook.resources.limits.memory"
+    value = "384Mi"
+  }
 }
 
 resource "helm_release" "trust_manager" {
