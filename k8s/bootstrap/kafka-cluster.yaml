@@ -36,9 +36,26 @@ spec:
             reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "backend,flink"
             reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
             reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: "backend,flink"
+  # without a limit the heap can grow to 20% of the node, and the jvm has no reason to give it back
   entityOperator:
-    topicOperator: {}
-    userOperator: {}
+    topicOperator:
+      jvmOptions:
+        -Xms: 64m
+        -Xmx: 192m
+      resources:
+        requests:
+          memory: 256Mi
+        limits:
+          memory: 384Mi
+    userOperator:
+      jvmOptions:
+        -Xms: 64m
+        -Xmx: 192m
+      resources:
+        requests:
+          memory: 256Mi
+        limits:
+          memory: 384Mi
 
 ---
 

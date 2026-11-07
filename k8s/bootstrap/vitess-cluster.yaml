@@ -62,6 +62,39 @@ spec:
 #                - cell: zone1
 #                  type: rdonly
 #                  replicas: 1
+    - name: holidayfriend
+      durabilityPolicy: none # single tablet set up
+      partitionings:
+        - equal:
+            parts: 1
+            shardTemplate:
+              databaseInitScriptSecret:
+                name: vitess-init-script
+                key: init_db.sql
+              tabletPools:
+                - cell: zone1
+                  type: replica
+                  replicas: 1
+                  vttablet:
+                    resources:
+                      requests:
+                        cpu: 500m
+                        memory: 256Mi
+                      limits:
+                        memory: 512Mi
+                  mysqld:
+                    resources:
+                      requests:
+                        cpu: 500m
+                        memory: 512Mi
+                      limits:
+                        memory: 1Gi
+                  dataVolumeClaimTemplate:
+                    accessModes:
+                      - ReadWriteOnce
+                    resources:
+                      requests:
+                        storage: 5Gi
 ---
 apiVersion: v1
 kind: Secret
