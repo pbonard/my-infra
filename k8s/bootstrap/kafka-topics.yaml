@@ -85,3 +85,59 @@ metadata:
 spec:
   partitions: 3
   replicas: 1
+
+---
+
+# AuthEvents (bans from chat's reports) for the auth of the mobile app, on the production keyspace
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: production.auth
+  namespace: kafka-system
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  partitions: 3
+  replicas: 1
+
+---
+
+# AuthEvents for the auth of holidayfriend, on its keyspace. a topic per app, so an auth never sees another's members
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: holidayfriend.auth
+  namespace: kafka-system
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  partitions: 3
+  replicas: 1
+
+---
+
+# the chat services of holidayfriend, on their own topics (common.AppScoped), so the ones of production never read
+# their messages. production's prepared-message isn't declared, the broker makes it on first use
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: holidayfriend.chat-message
+  namespace: kafka-system
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  partitions: 3
+  replicas: 1
+
+---
+
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: holidayfriend.prepared-message
+  namespace: kafka-system
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  partitions: 3
+  replicas: 1

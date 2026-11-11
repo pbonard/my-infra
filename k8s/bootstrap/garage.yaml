@@ -66,7 +66,7 @@ spec:
     annotations:
       reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
       reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
-      reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "backend"
+      reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "backend,holidayfriend"
 ---
 # flink's checkpoints, savepoints and ha metadata, s3://flink-state/<job>/...
 apiVersion: garage.rajsingh.info/v1beta1
