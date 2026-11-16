@@ -1,0 +1,35 @@
+# a limit per visitor's ip on every site, now that no cloudflare sits in front of the gateway. the address is the one
+# gateway-forwarder's PROXY protocol header carries, so each visitor gets their own bucket and not the forwarder.
+# generous: korean carriers put many phones behind one ip (cgnat), and a gallery of s3 media is a burst of GETs. it
+# stops one ip flooding the services, not a flood of the home connection itself.
+# routes with a BackendTrafficPolicy of their own (the apps' circuit breakers) only get this with mergeType set there,
+# the most specific policy wins otherwise
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: gateway-rate-limit
+  namespace: envoy-gateway-system
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: cluster-gateway
+  rateLimit:
+    # in the gateway's envoy, one bucket per ip per envoy (there's one): no redis, nothing shared to run
+    type: Local
+    local:
+      rules:
+        - clientSelectors:
+            - sourceCIDR:
+                type: Distinct
+                value: 0.0.0.0/0
+          limit:
+            requests: 100
+            unit: Second
+        - clientSelectors:
+            - sourceCIDR:
+                type: Distinct
+                value: ::/0
+          limit:
+            requests: 100
+            unit: Second
