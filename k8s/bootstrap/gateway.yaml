@@ -63,17 +63,28 @@ metadata:
 spec:
   gatewayClassName: eg
   listeners:
-    - name: backend-http
+    # every site straight from the home ip on 443, through gateway-forwarder (gateway-forwarder.yaml), with
+    # pbonard-tls (pbonard-cert.yaml). the backend and holidayfriend routes name no listener: they attach to theirs by
+    # hostname and namespace
+    - name: backend-https
       hostname: "backend.pbonard.com"
-      port: 80
-      protocol: HTTP
+      port: 443
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: pbonard-tls
       allowedRoutes:
         namespaces:
           from: All
-    - name: holidayfriend-http
+    - name: holidayfriend-https
       hostname: "holidayfriend.pbonard.com"
-      port: 80
-      protocol: HTTP
+      port: 443
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: pbonard-tls
       allowedRoutes:
         namespaces:
           from: Selector
@@ -81,45 +92,35 @@ spec:
             matchLabels:
               kubernetes.io/metadata.name: holidayfriend
     # github's argo cd webhook, the only route on it is POST /api/webhook (argocd-webhook.yaml)
-    - name: argocd-webhook-http
+    - name: argocd-webhook-https
       hostname: "argocd-webhook.pbonard.com"
-      port: 80
-      protocol: HTTP
+      port: 443
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: pbonard-tls
       allowedRoutes:
         namespaces:
           from: Selector
           selector:
             matchLabels:
               kubernetes.io/metadata.name: argocd
-    # garage's s3 api, presigned GET and POST only from outside, the route is in garage.yaml
-    - name: s3-http
+    # garage's s3 api, the route is garage.yaml's garage-s3
+    - name: s3-https
       hostname: "s3.pbonard.com"
-      port: 80
-      protocol: HTTP
+      port: 443
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: pbonard-tls
       allowedRoutes:
         namespaces:
           from: Selector
           selector:
             matchLabels:
               kubernetes.io/metadata.name: garage
-#    - name: backend-https
-#      hostname: "backend.pbonard.com"
-#      port: 443
-#      protocol: HTTPS
-#      tls:
-#        mode: Terminate
-#        certificateRefs:
-#          - name: backend-pbonard-tls
-#      allowedRoutes:
-#        namespaces:
-#          from: All
-#    - name: argocd-http
-#      hostname: "argocd.pbonard.com"
-#      port: 80
-#      protocol: HTTP
-#      allowedRoutes:
-#        namespaces:
-#          from: All
 #    - name: argocd-https
 #      hostname: "argocd.pbonard.com"
 #      protocol: HTTPS
@@ -127,25 +128,7 @@ spec:
 #      tls:
 #        mode: Terminate
 #        certificateRefs:
-#          - name: argocd-pbonard-tls
+#          - name: pbonard-tls
 #      allowedRoutes:
 #        namespaces:
 #          from: All
----
-
-apiVersion: v1
-kind: Service
-metadata:
-  name: static-envoy-ingress
-  namespace: envoy-gateway-system
-spec:
-  type: ClusterIP
-  selector:
-    # These labels strictly target your Envoy proxy pods
-    gateway.envoyproxy.io/owning-gateway-namespace: envoy-gateway-system
-    gateway.envoyproxy.io/owning-gateway-name: cluster-gateway
-  ports:
-    - name: http
-      protocol: TCP
-      port: 80
-      targetPort: 10080

@@ -201,3 +201,7 @@ raw-secret*.yaml
 *.srl
 *.p12
 *.cnf
+# ------------------------
+# Home server notes (wsl-node): how the node is set up and reached, kept out of this public repo
+# ------------------------
+wsl-node/

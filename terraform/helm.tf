@@ -159,7 +159,7 @@ resource "helm_release" "argocd" {
   values = [
     yamlencode({
       server = {
-        # plain http, public tls ends at cloudflare; the ui is only reached through kubectl port-forward,
+        # plain http, public tls ends at the envoy gateway; the ui is only reached through kubectl port-forward,
         # the gateway exposes nothing but POST /api/webhook (k8s/bootstrap/argocd-webhook.yaml)
         extraArgs = ["--insecure"]
         service = {

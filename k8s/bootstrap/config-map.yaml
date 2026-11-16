@@ -16,7 +16,9 @@ data:
   AWS_S3_REGION: "ap-northeast-2"
   AWS_S3_BUCKET_NAME: "chat-bucket-14129"
   AWS_CLOUDFRONT_URL: "https://djxowwus2kgwo.cloudfront.net"
-  # garage behind cloudflare, chat and notification presign upload and download urls for it
+  # garage straight from the home ip, not through cloudflare (its free plan sends korean users through los angeles,
+  # where media crawled): chat and notification presign upload and download urls for it. s3.pbonard.com's direct
+  # path is in my-infra (terraform/cloudflare.tf, k8s/bootstrap/gateway.yaml)
   S3_PUBLIC_URL: "https://s3.pbonard.com"
   FROM_EMAIL: "wsxc20xx@gmail.com"
   FROM_EMAIL_SMTP: "smtp.gmail.com"

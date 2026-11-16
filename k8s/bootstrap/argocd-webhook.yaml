@@ -7,7 +7,7 @@ spec:
   parentRefs:
     - name: cluster-gateway
       namespace: envoy-gateway-system
-      sectionName: argocd-webhook-http
+      sectionName: argocd-webhook-https
   hostnames:
     - argocd-webhook.pbonard.com
   rules:

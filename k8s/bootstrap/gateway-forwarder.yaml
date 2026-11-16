@@ -1,0 +1,143 @@
+# every site is served straight from the home ip on 443, with no cloudflare in front: its free plan sends korean users
+# through los angeles, where requests and media crawled. dns (terraform/cloudflare.tf) points every name at the home
+# ip, gateway-forwarder below takes 443 there and hands it to the gateway, whose https listeners (gateway.yaml) pick
+# the site by sni
+
+# gateway.yaml's https listeners (all on 443) inside the cluster, for gateway-forwarder below. envoy gateway runs a
+# listener under 1024 on its port + 10000
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway-https
+  namespace: envoy-gateway-system
+spec:
+  type: ClusterIP
+  selector:
+    gateway.envoyproxy.io/owning-gateway-namespace: envoy-gateway-system
+    gateway.envoyproxy.io/owning-gateway-name: cluster-gateway
+  ports:
+    - name: https
+      protocol: TCP
+      port: 443
+      targetPort: 10443
+
+---
+# the gateway's listeners read the PROXY protocol header gateway-forwarder puts before each connection: the visitor's
+# address, so the gateway sees who connected and not the forwarder. required, the forwarder always sends it and nothing
+# else reaches the gateway. on the whole gateway: a listener without it would take the header as tls and fail
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: ClientTrafficPolicy
+metadata:
+  name: gateway-proxy-protocol
+  namespace: envoy-gateway-system
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: cluster-gateway
+  proxyProtocol:
+    optional: false
+
+---
+# gateway-forwarder's envoy: every connection on 443, as it is (tls ends at the gateway), to gateway-https, after a
+# PROXY protocol v2 header with the visitor's address
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gateway-forwarder
+  namespace: envoy-gateway-system
+data:
+  envoy.yaml: |
+    static_resources:
+      listeners:
+        - name: https
+          address:
+            socket_address: { address: 0.0.0.0, port_value: 443 }
+          filter_chains:
+            - filters:
+                - name: envoy.filters.network.tcp_proxy
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
+                    stat_prefix: https
+                    cluster: gateway
+      clusters:
+        - name: gateway
+          type: STRICT_DNS
+          connect_timeout: 5s
+          load_assignment:
+            cluster_name: gateway
+            endpoints:
+              - lb_endpoints:
+                  - endpoint:
+                      address:
+                        socket_address:
+                          address: gateway-https.envoy-gateway-system.svc.cluster.local
+                          port_value: 443
+          transport_socket:
+            name: envoy.transport_sockets.upstream_proxy_protocol
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.transport_sockets.proxy_protocol.v3.ProxyProtocolUpstreamTransport
+              config: { version: V2 }
+              transport_socket:
+                name: envoy.transport_sockets.raw_buffer
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.transport_sockets.raw_buffer.v3.RawBuffer
+
+---
+# 443 on the home ip, passed on to gateway-https. a process that listens, on the host's network like turn: wsl's
+# mirrored networking hands windows' incoming connections only to ports a linux process listens on, so a LoadBalancer
+# service (k3s's servicelb, iptables, nothing listening) never gets them. only 443, no port 80: every client already
+# uses https. the windows firewall allows 443 in, in its own rules and hyper-v's.
+# an envoy of its own, the gateway's image, and not the gateway's on the host's network: a restart of the gateway
+# (its config changes with every route) would then hold 443 across two envoys
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway-forwarder
+  namespace: envoy-gateway-system
+spec:
+  replicas: 1
+  # one at a time on the one node: two can't both listen on 443
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: gateway-forwarder
+  template:
+    metadata:
+      labels:
+        app: gateway-forwarder
+    spec:
+      hostNetwork: true
+      # the service's name resolves through the cluster's dns, not the host's
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+        - name: envoy
+          image: envoyproxy/envoy:distroless-v1.38.3
+          # no hot restart: it holds a socket in the host's network namespace that a second envoy there would
+          # collide with, and a restart here is a new pod anyway
+          args: ["-c", "/etc/envoy/envoy.yaml", "--disable-hot-restart"]
+          ports:
+            - containerPort: 443
+              protocol: TCP
+          # 443 is under 1024: root, but with no privilege left but binding it
+          securityContext:
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+              add: ["NET_BIND_SERVICE"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/envoy
+      volumes:
+        - name: config
+          configMap:
+            name: gateway-forwarder
