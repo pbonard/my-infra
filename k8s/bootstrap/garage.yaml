@@ -82,6 +82,47 @@ spec:
     name: garage
   globalAlias: flink-state
   deletionPolicy: Retain
+  # flink only deletes the old checkpoints of a running job id. the last checkpoint of a replaced job id
+  # (RETAIN_ON_CANCELLATION) and hand triggered savepoints stay, these rules expire them. prefixes take no
+  # wildcards, so a new job in my-server values.yaml needs its own rules here.
+  # <job>/ha/ has no rule, its jar blobs and job graph are written once at start and stay in use.
+  # the checkpoint rules rely on full checkpoints (hashmap backend), every live file is at most 10s old.
+  # incremental rocksdb checkpoints keep old but still referenced files in shared/, drop the rules before switching
+  lifecycle:
+    rules:
+      - id: abort-multipart
+        status: Enabled
+        abortIncompleteMultipartUploadDays: 1
+      - id: cdc-job-checkpoints
+        status: Enabled
+        filter:
+          prefix: cdc-job/checkpoints/
+        expirationDays: 7
+      - id: cdc-job-savepoints
+        status: Enabled
+        filter:
+          prefix: cdc-job/savepoints/
+        expirationDays: 30
+      - id: exponential-backoff-retry-job-checkpoints
+        status: Enabled
+        filter:
+          prefix: exponential-backoff-retry-job/checkpoints/
+        expirationDays: 7
+      - id: exponential-backoff-retry-job-savepoints
+        status: Enabled
+        filter:
+          prefix: exponential-backoff-retry-job/savepoints/
+        expirationDays: 30
+      - id: scheduled-notification-job-checkpoints
+        status: Enabled
+        filter:
+          prefix: scheduled-notification-job/checkpoints/
+        expirationDays: 7
+      - id: scheduled-notification-job-savepoints
+        status: Enabled
+        filter:
+          prefix: scheduled-notification-job/savepoints/
+        expirationDays: 30
 ---
 # flink's own key, only flink-state. the s3 plugin reads AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY from env
 apiVersion: garage.rajsingh.info/v1beta1
