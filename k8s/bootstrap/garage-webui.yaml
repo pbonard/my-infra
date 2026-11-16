@@ -1,0 +1,65 @@
+# web ui of garage.yaml's cluster: buckets, keys, and an object browser that shows the images. in cluster only, no
+# route on the gateway, the admin token it holds controls every bucket. reached through a tunnel:
+#   kubectl port-forward -n garage svc/garage-webui 3909:3909   then http://localhost:3909
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: garage-webui
+  namespace: garage
+  labels:
+    app: garage-webui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: garage-webui
+  template:
+    metadata:
+      labels:
+        app: garage-webui
+    spec:
+      containers:
+        - name: garage-webui
+          # pinned, 1.1.0 speaks garage v2's admin api (/v2/...)
+          image: khairul169/garage-webui:1.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3909
+          # no garage.toml in this pod, so it takes the admin token from API_ADMIN_KEY. the object browser borrows the
+          # s3 key of a bucket from the admin api (the first read/write key, backend for chat-bucket)
+          env:
+            - name: API_BASE_URL
+              value: http://garage.garage.svc.cluster.local:3903
+            - name: API_ADMIN_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: garage-admin-token
+                  key: admin-token
+            - name: S3_ENDPOINT_URL
+              value: http://garage.garage.svc.cluster.local:3900
+            - name: S3_REGION
+              value: garage
+          readinessProbe:
+            tcpSocket:
+              port: http
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: garage-webui
+  namespace: garage
+spec:
+  type: ClusterIP
+  selector:
+    app: garage-webui
+  ports:
+    - name: http
+      port: 3909
+      targetPort: http
