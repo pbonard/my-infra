@@ -454,6 +454,41 @@ resource "helm_release" "opensearch_operator" {
   depends_on = [helm_release.cert_manager]
 }
 
+# the official clickhouse operator (github.com/ClickHouse/clickhouse-operator). The cluster is in k8s/bootstrap
+# (clickhouse-cluster.yaml). its webhook certificates come from cert-manager, it watches every namespace by default
+resource "helm_release" "clickhouse_operator" {
+  name       = "clickhouse-operator"
+  repository = "oci://ghcr.io/clickhouse"
+  chart      = "clickhouse-operator-helm"
+  # pinned, so terraform apply never upgrades the operator by surprise
+  version          = "0.0.8"
+  namespace        = "clickhouse-operator-system"
+  create_namespace = true
+
+  depends_on = [helm_release.cert_manager]
+}
+
+# the milvus operator (github.com/zilliztech/milvus-operator). The cluster is in k8s/bootstrap (milvus.yaml). its
+# webhook is off by default, so it needs no cert-manager
+resource "helm_release" "milvus_operator" {
+  name       = "milvus-operator"
+  repository = "https://zilliztech.github.io/milvus-operator/"
+  chart      = "milvus-operator"
+  # pinned, so terraform apply never upgrades the operator by surprise
+  version          = "1.3.13"
+  namespace        = "milvus-operator"
+  create_namespace = true
+
+  values = [
+    yamlencode({
+      resources = {
+        requests = { cpu = "50m", memory = "100Mi" }
+        limits   = { memory = "512Mi" }
+      }
+    })
+  ]
+}
+
 # resource "helm_release" "metrics_server" {
 #   name       = "metrics-server"
 #   repository = "https://kubernetes-sigs.github.io/metrics-server/"
