@@ -171,6 +171,103 @@ spec:
         # a browser's CORS preflight, which an upload whose progress is watched (the holidayfriend web app's) sends
         # first. garage answers it from the bucket's CORS rules, it reads and changes nothing
         - method: OPTIONS
+        # the blog's publish command. only its bucket, no other is written with PUT from outside. garage checks the
+        # signature here too
+        - method: PUT
+          path:
+            type: PathPrefix
+            value: /blog/
       backendRefs:
         - name: garage
           port: 3900
+---
+# the blog: its pages, photos and videos, uploaded with the blog repo's publish command. public: the website endpoint
+# serves its objects without a signature, through the blog route below
+apiVersion: garage.rajsingh.info/v1beta1
+kind: GarageBucket
+metadata:
+  name: blog
+  namespace: garage
+spec:
+  clusterRef:
+    name: garage
+  globalAlias: blog
+  deletionPolicy: Retain
+  website:
+    enabled: true
+    indexDocument: index.html
+    errorDocument: 404.html
+  # chat and flink share the same 5Gi disk
+  quotas:
+    maxSize: 1Gi
+---
+# the blog's own key, only its bucket. its secret stays in this namespace, the publish command reads a copy
+# of it, the blog repo's upload.toml
+apiVersion: garage.rajsingh.info/v1beta1
+kind: GarageKey
+metadata:
+  name: blog
+  namespace: garage
+spec:
+  clusterRef:
+    name: garage
+  neverExpires: true
+  bucketPermissions:
+    - bucketRef:
+        name: blog
+      read: true
+      write: true
+  secretTemplate:
+    name: garage-blog
+    accessKeyIdKey: AWS_ACCESS_KEY_ID
+    secretAccessKeyKey: AWS_SECRET_ACCESS_KEY
+---
+# blog.pbonard.com is garage's website endpoint. it picks the bucket by the host, and the rewrite always names
+# blog, so no other bucket can be reached here
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: blog
+  namespace: garage
+spec:
+  parentRefs:
+    # gateway.yaml's blog-https
+    - name: cluster-gateway
+      namespace: envoy-gateway-system
+      sectionName: blog-https
+  hostnames:
+    - blog.pbonard.com
+  rules:
+    - matches:
+        - method: GET
+        - method: HEAD
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            # <bucket> before the web api's root domain (garage.yaml's cluster, .garage.garage.svc)
+            hostname: blog.garage.garage.svc
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: X-Content-Type-Options
+                value: nosniff
+      backendRefs:
+        - name: garage
+          port: 3902
+---
+# garage doesn't compress, the gateway does
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: blog-compression
+  namespace: garage
+spec:
+  # merged with the gateway's per-ip rate limit (rate-limit.yaml), without it this policy wins over the gateway's
+  mergeType: StrategicMerge
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: blog
+  compressor:
+    - type: Gzip
+      gzip: {}
