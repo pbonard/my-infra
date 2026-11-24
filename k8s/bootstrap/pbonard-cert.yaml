@@ -1,14 +1,68 @@
-# *.pbonard.com's certificate, for every https listener of gateway.yaml. dns01 through cloudflare's api: the names are
-# dns only and point home, and nothing listens on port 80 for an http01 challenge
+# one certificate per site, each for an https listener of gateway.yaml. not one *.pbonard.com for all: a browser may reuse
+# an http/2 connection for every name its certificate covers and end up on another site's listener, so envoy gateway
+# turns http/2 off when listeners' certificates overlap. a new site needs its own here. dns01 through cloudflare's api:
+# the names are dns only and point home, and nothing listens on port 80 for an http01 challenge
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: pbonard-tls
+  name: backend-pbonard-tls
   namespace: envoy-gateway-system
 spec:
-  secretName: pbonard-tls
+  secretName: backend-pbonard-tls
   dnsNames:
-    - "*.pbonard.com"
+    - "backend.pbonard.com"
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-cloudflare
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: holidayfriend-pbonard-tls
+  namespace: envoy-gateway-system
+spec:
+  secretName: holidayfriend-pbonard-tls
+  dnsNames:
+    - "holidayfriend.pbonard.com"
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-cloudflare
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: blog-pbonard-tls
+  namespace: envoy-gateway-system
+spec:
+  secretName: blog-pbonard-tls
+  dnsNames:
+    - "blog.pbonard.com"
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-cloudflare
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: argocd-webhook-pbonard-tls
+  namespace: envoy-gateway-system
+spec:
+  secretName: argocd-webhook-pbonard-tls
+  dnsNames:
+    - "argocd-webhook.pbonard.com"
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-cloudflare
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: s3-pbonard-tls
+  namespace: envoy-gateway-system
+spec:
+  secretName: s3-pbonard-tls
+  dnsNames:
+    - "s3.pbonard.com"
   issuerRef:
     kind: ClusterIssuer
     name: letsencrypt-cloudflare
