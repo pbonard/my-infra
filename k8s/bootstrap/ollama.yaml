@@ -50,7 +50,7 @@ spec:
             - |
               ollama serve &
               until ollama list >/dev/null 2>&1; do sleep 1; done
-              ollama pull "$MODEL"
+              for model in $MODELS; do ollama pull "$model" || exit 1; done
           # caps the pull's page cache to this cgroup instead of the whole wsl vm
           resources:
             requests:
@@ -58,8 +58,9 @@ spec:
             limits:
               memory: 2Gi
           env:
-            - name: MODEL
-              value: qwen3:8b
+            # moderation, and the embeddings of holidayfriend's posts
+            - name: MODELS
+              value: qwen3:8b bge-m3
           volumeMounts:
             - name: models
               mountPath: /root/.ollama
@@ -76,8 +77,9 @@ spec:
             # one evaluation at a time, reports are consumed one by one per partition anyway
             - name: OLLAMA_NUM_PARALLEL
               value: "1"
+            # both models stay on the gpu, with one the other is unloaded at every switch
             - name: OLLAMA_MAX_LOADED_MODELS
-              value: "1"
+              value: "2"
             - name: OLLAMA_CONTEXT_LENGTH
               value: "4096"
             # halves the kv cache, q8_0 needs flash attention

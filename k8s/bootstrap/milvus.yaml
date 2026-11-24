@@ -1,0 +1,110 @@
+# standalone milvus, the vectors of holidayfriend's posts. The operator is helm_release.milvus_operator
+# in the cluster: http://milvus-milvus.milvus:19530, grpc and rest. no login, nothing outside reaches it
+# one node holds the only copy. the vectors can be made again from the posts
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: milvus
+---
+apiVersion: garage.rajsingh.info/v1beta1
+kind: GarageBucket
+metadata:
+  name: milvus
+  namespace: garage
+spec:
+  clusterRef:
+    name: garage
+  globalAlias: milvus
+  deletionPolicy: Retain
+  # chat and flink share the same 5Gi disk
+  quotas:
+    maxSize: 1Gi
+---
+# milvus's own key, only its bucket. the operator reads the names accesskey and secretkey
+apiVersion: garage.rajsingh.info/v1beta1
+kind: GarageKey
+metadata:
+  name: milvus
+  namespace: garage
+spec:
+  clusterRef:
+    name: garage
+  neverExpires: true
+  bucketPermissions:
+    - bucketRef:
+        name: milvus
+      read: true
+      write: true
+  secretTemplate:
+    name: garage-milvus
+    accessKeyIdKey: accesskey
+    secretAccessKeyKey: secretkey
+    annotations:
+      reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
+      reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
+      reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "milvus"
+---
+apiVersion: milvus.io/v1beta1
+kind: Milvus
+metadata:
+  name: milvus
+  namespace: milvus
+spec:
+  mode: standalone
+  components:
+    image: milvusdb/milvus:v3.0.6
+    # two pods can't share the log's volume, so the old pod stops before the new one starts
+    enableRollingUpdate: false
+    # no prometheus operator here
+    disableMetric: true
+    standalone:
+      replicas: 1
+      serviceType: ClusterIP
+    resources:
+      requests:
+        cpu: 200m
+        memory: 1Gi
+      limits:
+        memory: 2Gi
+  config:
+    minio:
+      bucketName: milvus
+      rootPath: files
+      # garage checks the region a request is signed for
+      region: garage
+      useSSL: false
+    woodpecker:
+      storage:
+        # the log on the volume below, in object storage it would write to garage several times a second
+        type: local
+  dependencies:
+    msgStreamType: woodpecker
+    woodpecker:
+      persistence:
+        enabled: true
+        persistentVolumeClaim:
+          spec:
+            storageClassName: local-path
+            accessModes: [ReadWriteOnce]
+            resources:
+              requests:
+                storage: 5Gi
+    etcd:
+      inCluster:
+        deletionPolicy: Retain
+        values:
+          replicaCount: 1
+          persistence:
+            storageClass: local-path
+            size: 1Gi
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+    storage:
+      external: true
+      type: S3
+      endpoint: garage.garage.svc.cluster.local:3900
+      secretRef: garage-milvus
