@@ -1,0 +1,50 @@
+# single node clickhouse in backend, for analytics data (chicago tnp trips). The operator is helm_release.clickhouse_operator
+# (the official ClickHouse one). It needs a keeper even with one replica, so a one node keeper runs next to it.
+# user default, password in the clickhouse-password secret (sealedsecret/sealed-secret-clickhouse.yaml).
+# in the cluster: clickhouse-clickhouse-headless.backend (http 8123, native 9000)
+# from the mac: kubectl port-forward -n backend svc/clickhouse-clickhouse-headless 8123 9000
+# one node holds the only copy, a lost disk loses the data. no backups
+apiVersion: clickhouse.com/v1alpha1
+kind: KeeperCluster
+metadata:
+  name: clickhouse
+  namespace: backend
+spec:
+  replicas: 1
+  dataVolumeClaimSpec:
+    storageClassName: local-path
+    accessModes: [ReadWriteOnce]
+    resources:
+      requests:
+        storage: 1Gi
+---
+apiVersion: clickhouse.com/v1alpha1
+kind: ClickHouseCluster
+metadata:
+  name: clickhouse
+  namespace: backend
+spec:
+  replicas: 1
+  shards: 1
+  keeperClusterRef:
+    name: clickhouse
+  settings:
+    defaultUserPassword:
+      passwordType: password
+      secret:
+        name: clickhouse-password
+        key: password
+  containerTemplate:
+    resources:
+      requests:
+        cpu: 500m
+        memory: 2Gi
+      limits:
+        memory: 4Gi
+  # local-path doesn't enforce the size: the real limit is the wsl vhdx, bounded by C:'s free space
+  dataVolumeClaimSpec:
+    storageClassName: local-path
+    accessModes: [ReadWriteOnce]
+    resources:
+      requests:
+        storage: 20Gi

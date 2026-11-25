@@ -144,6 +144,20 @@ spec:
 
 ---
 
+# the signals of calls between members on two chat servers, consumed by holidayfriend's signalrelay
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: holidayfriend.conversation-signal
+  namespace: kafka-system
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  partitions: 3
+  replicas: 1
+
+---
+
 # holidayfriend post reports, keyed by post id, consumed by holidayfriend-server's report consumer
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
